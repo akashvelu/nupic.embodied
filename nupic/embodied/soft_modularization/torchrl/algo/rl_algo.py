@@ -1,3 +1,4 @@
+import copy
 import time
 from collections import deque
 import numpy as np
@@ -5,7 +6,6 @@ import numpy as np
 import torch
 
 import nupic.embodied.soft_modularization.torchrl.algo.utils as atu
-from nupic.torch.modules.sparse_weights import rezero_weights
 
 import gym
 
@@ -85,21 +85,6 @@ class RLAlgo():
     def update_per_epoch(self):
         pass
 
-    def pre_update(self):
-        """What to do before gradient updates."""
-        for network in self.networks:
-            network.train()
-
-    def post_update(self):
-        """What to do after taking a set of gradient steps."""
-        for network in self.networks:
-            network.eval()
-
-    def post_gradient_step(self):
-        """What to do after an individual optimizer step."""
-        for network in self.networks:
-            network.apply(rezero_weights)
-
     def snapshot(self, prefix, epoch):
         for name, network in self.snapshot_networks:
             model_file_name="model_{}_{}.pth".format(name, epoch)
@@ -119,22 +104,17 @@ class RLAlgo():
             start = time.time()
 
             self.start_epoch()
-
-            # collect new transition samples
+            
             explore_start_time = time.time()
             training_epoch_info =  self.collector.train_one_epoch()
             for reward in training_epoch_info["train_rewards"]:
                 self.training_episode_rewards.append(reward)
             explore_time = time.time() - explore_start_time
 
-            # take gradient steps
-            self.pre_update()
             train_start_time = time.time()
             self.update_per_epoch()
             train_time = time.time() - train_start_time
-            self.post_update()
 
-            # evaluate policy
             finish_epoch_info = self.finish_epoch()
 
             eval_start_time = time.time()

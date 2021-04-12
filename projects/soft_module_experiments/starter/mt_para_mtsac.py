@@ -5,12 +5,14 @@ sys.path.append(".")
 import torch
 
 import os
+import time
 import os.path as osp
 
 import numpy as np
 
 from nupic.embodied.soft_modularization.torchrl.utils import get_args
 from nupic.embodied.soft_modularization.torchrl.utils import get_params
+from nupic.embodied.soft_modularization.torchrl.env import get_env
 
 from nupic.embodied.soft_modularization.torchrl.utils import Logger
 
@@ -19,10 +21,19 @@ params = get_params(args.config)
 
 import nupic.embodied.soft_modularization.torchrl.policies as policies
 import nupic.embodied.soft_modularization.torchrl.networks as networks
+from nupic.embodied.soft_modularization.torchrl.algo import SAC
+from nupic.embodied.soft_modularization.torchrl.algo import TwinSAC
+from nupic.embodied.soft_modularization.torchrl.algo import TwinSACQ
 from nupic.embodied.soft_modularization.torchrl.algo import MTSAC
+from nupic.embodied.soft_modularization.torchrl.collector.para import ParallelCollector
+from nupic.embodied.soft_modularization.torchrl.collector.para import AsyncParallelCollector
+from nupic.embodied.soft_modularization.torchrl.collector.para.mt import SingleTaskParallelCollectorBase
+from nupic.embodied.soft_modularization.torchrl.collector.para.async_mt import AsyncSingleTaskParallelCollector
 from nupic.embodied.soft_modularization.torchrl.collector.para.async_mt import AsyncMultiTaskParallelCollectorUniform
 
+from nupic.embodied.soft_modularization.torchrl.replay_buffers.shared import SharedBaseReplayBuffer
 from nupic.embodied.soft_modularization.torchrl.replay_buffers.shared import AsyncSharedReplayBuffer
+import gym
 
 from nupic.embodied.soft_modularization.metaworld_utils.meta_env import get_meta_env
 

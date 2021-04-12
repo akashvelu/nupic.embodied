@@ -8,39 +8,37 @@ from torch import nn as nn
 
 from .off_rl_algo import OffRLAlgo
 
-class TwinSACQ(OffRLAlgo):
+class TwinSAC(OffRLAlgo):
     """
-    Twin SAC without V
+    SAC
     """
 
     def __init__(
             self,
-            pf,
+            pf, vf,
             qf1, qf2,
-            plr, qlr,
+            plr,vlr,qlr,
             optimizer_class=optim.Adam,
-
+            
             policy_std_reg_weight=1e-3,
             policy_mean_reg_weight=1e-3,
 
-            reparameterization=True,
-            automatic_entropy_tuning=True,
-            target_entropy=None,
+            reparameterization = True,
+            automatic_entropy_tuning = True,
+            target_entropy = None,
             **kwargs
     ):
-        super(TwinSACQ, self).__init__(**kwargs)
+        super(TwinSAC, self).__init__(**kwargs)
         self.pf = pf
         self.qf1 = qf1
         self.qf2 = qf2
-        self.target_qf1 = copy.deepcopy(qf1)
-        self.target_qf2 = copy.deepcopy(qf2)
-
+        self.vf = vf
+        self.target_vf = copy.deepcopy(vf)
         self.to(self.device)
 
         self.plr = plr
+        self.vlr = vlr
         self.qlr = qlr
-
-        self.optimizer_class = optimizer_class
 
         self.qf1_optimizer = optimizer_class(
             self.qf1.parameters(),
@@ -52,11 +50,16 @@ class TwinSACQ(OffRLAlgo):
             lr=self.qlr,
         )
 
+        self.vf_optimizer = optimizer_class(
+            self.vf.parameters(),
+            lr=self.vlr,
+        )
+
         self.pf_optimizer = optimizer_class(
             self.pf.parameters(),
             lr=self.plr,
         )
-
+        
         self.automatic_entropy_tuning = automatic_entropy_tuning
         if self.automatic_entropy_tuning:
             if target_entropy:
@@ -71,25 +74,27 @@ class TwinSACQ(OffRLAlgo):
             )
 
         self.qf_criterion = nn.MSELoss()
+        self.vf_criterion = nn.MSELoss()
 
         self.policy_std_reg_weight = policy_std_reg_weight
         self.policy_mean_reg_weight = policy_mean_reg_weight
 
         self.reparameterization = reparameterization
 
+
     def update(self, batch):
         self.training_update_num += 1
-        obs       = batch['obs']
-        actions   = batch['acts']
-        next_obs  = batch['next_obs']
-        rewards   = batch['rewards']
+        obs = batch['obs']
+        actions = batch['acts']
+        next_obs = batch['next_obs']
+        rewards = batch['rewards']
         terminals = batch['terminals']
 
-        rewards   = torch.Tensor(rewards).to( self.device )
+        rewards = torch.Tensor(rewards).to( self.device )
         terminals = torch.Tensor(terminals).to( self.device )
-        obs       = torch.Tensor(obs).to( self.device )
-        actions   = torch.Tensor(actions).to( self.device )
-        next_obs  = torch.Tensor(next_obs).to( self.device )
+        obs = torch.Tensor(obs).to( self.device )
+        actions = torch.Tensor(actions).to( self.device )
+        next_obs = torch.Tensor(next_obs).to( self.device )
 
         """
         Policy operations.
@@ -100,10 +105,11 @@ class TwinSACQ(OffRLAlgo):
         log_std     = sample_info["log_std"]
         new_actions = sample_info["action"]
         log_probs   = sample_info["log_prob"]
+        ent         = sample_info["ent"]
 
         q1_pred = self.qf1([obs, actions])
         q2_pred = self.qf2([obs, actions])
-        # v_pred = self.vf(obs)
+        v_pred = self.vf(obs)
 
         if self.automatic_entropy_tuning:
             """
@@ -113,42 +119,35 @@ class TwinSACQ(OffRLAlgo):
             self.alpha_optimizer.zero_grad()
             alpha_loss.backward()
             self.alpha_optimizer.step()
-            alpha = self.log_alpha.exp().detach()
+            alpha = self.log_alpha.exp()
         else:
             alpha = 1
             alpha_loss = 0
 
-        with torch.no_grad():
-            target_sample_info = self.pf.explore(next_obs, return_log_probs=True )
-
-            target_actions   = target_sample_info["action"]
-            target_log_probs = target_sample_info["log_prob"]
-
-            target_q1_pred = self.target_qf1([next_obs, target_actions])
-            target_q2_pred = self.target_qf2([next_obs, target_actions])
-            min_target_q = torch.min(target_q1_pred, target_q2_pred)
-            target_v_values = min_target_q - alpha * target_log_probs
         """
         QF Loss
         """
+        target_v_values = self.target_vf(next_obs)
         q_target = rewards + (1. - terminals) * self.discount * target_v_values
-        qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
-        qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
-        assert q1_pred.shape == q_target.shape
-        assert q2_pred.shape == q_target.shape
-        # qf1_loss = (0.5 * ( q1_pred - q_target.detach() ) ** 2).mean()
-        # qf2_loss = (0.5 * ( q2_pred - q_target.detach() ) ** 2).mean()
+        qf1_loss = self.qf_criterion( q1_pred, q_target.detach())
+        qf2_loss = self.qf_criterion( q2_pred, q_target.detach())
 
-        q_new_actions = torch.min(
-            self.qf1([obs, new_actions]),
-            self.qf2([obs, new_actions]))
+        """
+        VF Loss
+        """
+        q_new_actions = torch.min(self.qf1([obs, new_actions]), self.qf2([obs, new_actions]))
+        v_target = q_new_actions - alpha * log_probs
+        vf_loss = self.vf_criterion( v_pred, v_target.detach())
+
         """
         Policy Loss
         """
         if not self.reparameterization:
-            raise NotImplementedError
+            log_policy_target = q_new_actions - v_pred
+            policy_loss = (
+                log_probs * ( alpha * log_probs - log_policy_target).detach()
+            ).mean()
         else:
-            assert log_probs.shape == q_new_actions.shape
             policy_loss = ( alpha * log_probs - q_new_actions).mean()
 
         std_reg_loss = self.policy_std_reg_weight * (log_std**2).mean()
@@ -162,18 +161,19 @@ class TwinSACQ(OffRLAlgo):
 
         self.pf_optimizer.zero_grad()
         policy_loss.backward()
-        pf_norm = torch.nn.utils.clip_grad_norm_(self.pf.parameters(), 10)
         self.pf_optimizer.step()
 
         self.qf1_optimizer.zero_grad()
         qf1_loss.backward()
-        qf1_norm = torch.nn.utils.clip_grad_norm_(self.qf1.parameters(), 10)
         self.qf1_optimizer.step()
 
         self.qf2_optimizer.zero_grad()
         qf2_loss.backward()
-        qf2_norm = torch.nn.utils.clip_grad_norm_(self.qf2.parameters(), 10)
         self.qf2_optimizer.step()
+
+        self.vf_optimizer.zero_grad()
+        vf_loss.backward()
+        self.vf_optimizer.step()
 
         self._update_target_networks()
 
@@ -185,12 +185,9 @@ class TwinSACQ(OffRLAlgo):
             info["Alpha"] = alpha.item()
             info["Alpha_loss"] = alpha_loss.item()
         info['Training/policy_loss'] = policy_loss.item()
+        info['Training/vf_loss'] = vf_loss.item()
         info['Training/qf1_loss'] = qf1_loss.item()
         info['Training/qf2_loss'] = qf2_loss.item()
-
-        info['Training/pf_norm'] = pf_norm
-        info['Training/qf1_norm'] = qf1_norm
-        info['Training/qf2_norm'] = qf2_norm
 
         info['log_std/mean'] = log_std.mean().item()
         info['log_std/std'] = log_std.std().item()
@@ -215,21 +212,21 @@ class TwinSACQ(OffRLAlgo):
             self.pf,
             self.qf1,
             self.qf2,
-            self.target_qf1,
-            self.target_qf2
+            self.vf,
+            self.target_vf
         ]
-    
+
     @property
     def snapshot_networks(self):
         return [
             ["pf", self.pf],
             ["qf1", self.qf1],
             ["qf2", self.qf2],
+            ["vf", self.vf]
         ]
 
     @property
     def target_networks(self):
         return [
-            ( self.qf1, self.target_qf1 ),
-            ( self.qf2, self.target_qf2 )
+            ( self.vf, self.target_vf )
         ]

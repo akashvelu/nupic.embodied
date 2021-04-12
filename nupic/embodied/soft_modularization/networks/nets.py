@@ -28,10 +28,7 @@ from nupic.research.frameworks.dendrites import (
     OneSegmentDendriticLayer,
 )
 from nupic.torch.modules import KWinners
-from nupic.research.frameworks.pytorch.models.le_sparse_net import (
-    add_sparse_linear_layer,
-)
-from nupic.torch.modules.sparse_weights import rezero_weights
+
 
 class DendriticMLP(nn.Module):
     """
@@ -66,7 +63,7 @@ class DendriticMLP(nn.Module):
                  k_winners_percent_on=0.25,
                  output_nonlinearity=None,
                  dendritic_layer_class=AbsoluteMaxGatingDendriticLayer):
-        super().__init__()
+
         if all([num_seg == 1 for num_seg in num_segments]):
             dendritic_layer_class = OneSegmentDendriticLayer
         assert dendritic_layer_class in {AbsoluteMaxGatingDendriticLayer,
@@ -76,6 +73,9 @@ class DendriticMLP(nn.Module):
 
         # The nonlinearity can either be k-Winners or ReLU, but not both
         assert not (k_winners and relu)
+
+        super().__init__()
+
         self.num_segments = num_segments
         self.input_size = input_size
         self.hidden_sizes = hidden_sizes
@@ -108,6 +108,7 @@ class DendriticMLP(nn.Module):
             self._activations.append(curr_activation)
             prev_dim = hidden_sizes[i]
 
+        # Final multiheaded layer
         self._output_layer = nn.Sequential()
         linear_layer = nn.Linear(prev_dim, output_dim)
         self._output_layer.add_module("linear", linear_layer)
@@ -115,102 +116,15 @@ class DendriticMLP(nn.Module):
         if output_nonlinearity:
             self._output_layer.add_module("non_linearity",
                                     output_nonlinearity)
-        self.apply(rezero_weights)
 
     def forward(self, x, context):
-        if len(x.shape) > 2:
-            original_shape = x.shape
-            x = torch.flatten(x, start_dim=0, end_dim=1)
-            context = torch.flatten(context, start_dim=0, end_dim=1)
-            for layer, activation in zip(self._layers, self._activations):
-                x = activation(layer(x, context))
-            x = self._output_layer(x)
-            x = x.view(original_shape[0], original_shape[1], x.shape[-1])
-            return x
         for layer, activation in zip(self._layers, self._activations):
             x = activation(layer(x, context))
-            return self._output_layer(x)
 
+        return self._output_layer(x)
 
 class FlattenDendriticMLP(DendriticMLP):
     def forward(self, x, context):
         x = torch.cat(x, dim=-1)
         return super().forward(x, context)
-
-
-class SparseMLP(nn.Module):
-    def __init__(self, input_dim,
-                 output_dim,
-                 output_nonlinearity=None,
-                 hidden_sizes=(32, 32),
-                 k_winners_percent_on=(0.1, 0.1),
-                 weight_sparsity=(0.4, 0.4),
-                 boost_strength=1.67,
-                 boost_strength_factor=0.9,
-                 duty_cycle_period=1000,
-                 k_inference_factor=1.5,
-                 use_batch_norm=True,
-                 dropout=0.0,
-                 consolidated_sparse_weights=False,
-                 ):
-        super(SparseMLP, self).__init__()
-        assert len(hidden_sizes) == len(weight_sparsity)
-        assert len(k_winners_percent_on) == len(weight_sparsity)
-
-        self._hidden_base = nn.Sequential()
-        self._hidden_base.add_module("flatten", nn.Flatten())
-        # Add Sparse Linear layers
-        for i in range(len(hidden_sizes)):
-            add_sparse_linear_layer(
-                network=self._hidden_base,
-                suffix=i + 1,
-                input_size=input_dim,
-                linear_n=hidden_sizes[i],
-                dropout=dropout,
-                use_batch_norm=use_batch_norm,
-                weight_sparsity=weight_sparsity[i],
-                percent_on=k_winners_percent_on[i],
-                k_inference_factor=k_inference_factor,
-                boost_strength=boost_strength,
-                boost_strength_factor=boost_strength_factor,
-                duty_cycle_period=duty_cycle_period,
-                consolidated_sparse_weights=consolidated_sparse_weights,
-            )
-            input_dim = hidden_sizes[i]
-
-        self._output_layer = nn.Sequential()
-        linear_layer = nn.Linear(input_dim, output_dim)
-        self._output_layer.add_module("linear", linear_layer)
-
-        if output_nonlinearity:
-            self._output_layer.add_module("non_linearity",
-                                    output_nonlinearity)
-        self.apply(rezero_weights)
-
-    def forward(self, input_val):
-        """Forward method.
-
-        Args:
-            input_val (torch.Tensor): Input values with (N, *, input_dim)
-                shape.
-
-        Returns:
-            List[torch.Tensor]: Output values
-
-        """
-        if len(input_val.shape) > 2:
-            original_shape = input_val.shape
-            input_val = torch.flatten(input_val, start_dim=0, end_dim=1)
-            x = self._hidden_base(input_val)
-            x = self._output_layer(x)
-            x = x.view(original_shape[0], original_shape[1], x.shape[-1])
-            return x
-        else:
-            x = self._hidden_base(input_val)
-            return self._output_layer(x)
-
-
-class FlattenSparseMLP(SparseMLP):
-    def forward(self, x):
-        x = torch.cat(x, dim=-1)
-        return super().forward(x)
+    

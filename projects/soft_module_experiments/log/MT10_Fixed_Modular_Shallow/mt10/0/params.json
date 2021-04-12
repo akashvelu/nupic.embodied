@@ -5,30 +5,26 @@
     "obs_norm": false
   },
   "meta_env": {
-    "obs_type": "with_goal_and_id"
+    "obs_type": "with_goal"
   },
   "replay_buffer": {
     "size": 1000000.0
   },
   "net": {
     "hidden_sizes": [
-      800,
-      800,
-      800
+      400,
+      400,
+      400
     ],
-    "k_winners_percent_on": [
-      0.25,
-      0.25,
-      0.25
+    "num_segments": [
+      1,
+      1,
+      1
     ],
-    "weight_sparsity": [
-      1.0,
-      1.0,
-      1.0
-    ],
-    "use_batch_norm": false,
-    "consolidated_sparse_weights": false,
-    "k_inference_factor": 1.0
+    "weight_sparsity": 1.0,
+    "k_winners": false,
+    "relu": true,
+    "output_nonlinearity": null
   },
   "general_setting": {
     "discount": 0.99,
@@ -49,6 +45,7 @@
     "qlr": 0.0003,
     "reparameterization": true,
     "automatic_entropy_tuning": true,
+    "temp_reweight": true,
     "policy_std_reg_weight": 0,
     "policy_mean_reg_weight": 0
   }

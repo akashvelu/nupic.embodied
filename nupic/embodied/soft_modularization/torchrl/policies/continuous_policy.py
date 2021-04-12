@@ -64,7 +64,7 @@ class FixGuassianContPolicy(networks.Net):
         }
 
 
-class GuassianContPolicy(nn.Module):
+class GuassianContPolicy(networks.Net):
     def forward(self, x):
         x = super().forward(x)
 
@@ -80,8 +80,8 @@ class GuassianContPolicy(nn.Module):
             mean, _, _ = self.forward(x)
         return torch.tanh(mean.squeeze(0)).detach().cpu().numpy()
 
-    def explore(self, x, return_log_probs = False, return_pre_tanh = False):
-        # print(x.shape)
+    def explore( self, x, return_log_probs = False, return_pre_tanh = False ):
+
         mean, std, log_std = self.forward(x)
 
         dis = TanhNormal(mean, std)

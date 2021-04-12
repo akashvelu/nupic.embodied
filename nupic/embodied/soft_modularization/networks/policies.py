@@ -1,8 +1,10 @@
 import torch
 from nupic.embodied.soft_modularization.torchrl.policies.distribution import TanhNormal
 from nupic.embodied.soft_modularization.networks.nets import DendriticMLP
-from nupic.embodied.soft_modularization.torchrl.policies import EmbeddingGuassianContPolicyBase, GuassianContPolicy
-from nupic.embodied.soft_modularization.networks.nets import SparseMLP
+from nupic.embodied.soft_modularization.torchrl.policies import EmbeddingGuassianContPolicyBase
+
+import abc
+from torch import nn
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
@@ -56,15 +58,3 @@ class DendriticGuassianContPolicy(DendriticMLP, EmbeddingGuassianContPolicyBase)
 
         dic["action"] = action.squeeze(0)
         return dic
-
-
-class SparseMLPGaussianContPolicy(SparseMLP, GuassianContPolicy):
-    def forward(self, x):
-
-        x = super(SparseMLPGaussianContPolicy, self).forward(x)
-        mean, log_std = x.chunk(2, dim=-1)
-
-        log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
-        std = torch.exp(log_std)
-
-        return mean, std, log_std

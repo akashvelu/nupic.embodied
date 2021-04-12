@@ -1,5 +1,8 @@
 import time
 import numpy as np
+import math
+
+import torch
 
 from nupic.embodied.soft_modularization.torchrl.algo.rl_algo import RLAlgo
 
@@ -38,19 +41,16 @@ class OffRLAlgo(RLAlgo):
 
     def update_per_timestep(self):
         if self.replay_buffer.num_steps_can_sample() > max( self.min_pool, self.batch_size ):
-            for _ in range(self.opt_times):
+            for _ in range( self.opt_times ):
                 batch = self.replay_buffer.random_batch(self.batch_size, self.sample_key)
-                self.post_gradient_step()
-                infos = self.update(batch)
+                infos = self.update( batch )
                 self.logger.add_update_info( infos )
 
     def update_per_epoch(self):
-        for _ in range(self.opt_times):
+        for _ in range( self.opt_times ):
             batch = self.replay_buffer.random_batch(self.batch_size, self.sample_key)
-            # self.process_batch()
-            infos = self.update(batch)
-            self.post_gradient_step()
-            self.logger.add_update_info(infos)
+            infos = self.update( batch )
+            self.logger.add_update_info( infos )
 
     def pretrain(self):
         total_frames = 0
