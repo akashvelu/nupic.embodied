@@ -233,3 +233,19 @@ class TwinSACQ(OffRLAlgo):
             (self.qf1, self.target_qf1),
             (self.qf2, self.target_qf2)
         ]
+
+    @property
+    def optimizers(self):
+        return [
+            self.pf_optimizer,
+            self.qf1_optimizer,
+            self.qf2_optimizer
+        ]
+
+    @property
+    def snapshot_optimizers(self):
+        return [
+            ["pf_optimizer", self.pf_optimizer],
+            ["qf1_optimizer", self.qf1_optimizer],
+            ["qf2_optimizer", self.qf2_optimizer],
+        ]

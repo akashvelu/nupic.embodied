@@ -214,3 +214,19 @@ class SAC(OffRLAlgo):
         return [
             (self.vf, self.target_vf)
         ]
+
+    @property
+    def optimizers(self):
+        return [
+            self.pf_optimizer,
+            self.vf_optimizer,
+            self.qf_optimizer,
+        ]
+
+    @property
+    def snapshot_optimizers(self):
+        return [
+            ["pf_optimizer", self.pf_optimizer],
+            ["qf_optimizer", self.qf_optimizer],
+            ["vf_optimizer", self.vf_optimizer],
+        ]

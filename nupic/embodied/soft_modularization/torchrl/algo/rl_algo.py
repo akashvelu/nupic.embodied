@@ -168,18 +168,19 @@ class RLAlgo():
 
     @property
     def networks(self):
-        return [
-        ]
+        return []
 
     @property
     def snapshot_networks(self):
-        return [
-        ]
+        return []
 
     @property
     def target_networks(self):
-        return [
-        ]
+        return []
+
+    @property
+    def optimizers(self):
+        return []
 
     def to(self, device):
         for net in self.networks:
