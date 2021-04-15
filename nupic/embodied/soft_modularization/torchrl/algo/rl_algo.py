@@ -11,35 +11,37 @@ import gym
 import os
 import os.path as osp
 
+
 class RLAlgo():
     """
     Base RL Algorithm Framework
     """
+
     def __init__(self,
-        env = None,
-        replay_buffer = None,
-        collector = None,
-        logger = None,
-        continuous = None,
-        discount=0.99,
-        num_epochs = 3000,
-        epoch_frames = 1000,
-        max_episode_frames = 999,
-        batch_size = 128,
-        device = 'cpu',
-        train_render = False,
-        eval_episodes = 1,
-        eval_render = False,
-        save_interval = 100,
-        save_dir = None
-    ):
+                 env=None,
+                 replay_buffer=None,
+                 collector=None,
+                 logger=None,
+                 continuous=None,
+                 discount=0.99,
+                 num_epochs=3000,
+                 epoch_frames=1000,
+                 max_episode_frames=999,
+                 batch_size=128,
+                 device='cpu',
+                 train_render=False,
+                 eval_episodes=1,
+                 eval_render=False,
+                 save_interval=100,
+                 save_dir=None
+                 ):
 
         self.env = env
 
         self.continuous = isinstance(self.env.action_space, gym.spaces.Box)
 
         self.replay_buffer = replay_buffer
-        self.collector = collector        
+        self.collector = collector
         # device specification
         self.device = device
 
@@ -60,15 +62,14 @@ class RLAlgo():
         # Logger & relevant setting
         self.logger = logger
 
-        
         self.episode_rewards = deque(maxlen=30)
         self.training_episode_rewards = deque(maxlen=30)
         self.eval_episodes = eval_episodes
 
         self.save_interval = save_interval
         self.save_dir = save_dir
-        if not osp.exists( self.save_dir ):
-            os.mkdir( self.save_dir )
+        if not osp.exists(self.save_dir):
+            os.mkdir(self.save_dir)
 
         self.best_eval = None
 
@@ -80,14 +81,14 @@ class RLAlgo():
 
     def pretrain(self):
         pass
-    
+
     def update_per_epoch(self):
         pass
 
     def snapshot(self, prefix, epoch):
         for name, network in self.snapshot_networks:
-            model_file_name="model_{}_{}.pth".format(name, epoch)
-            model_path=osp.join(prefix, model_file_name)
+            model_file_name = "model_{}_{}.pth".format(name, epoch)
+            model_path = osp.join(prefix, model_file_name)
             torch.save(network.state_dict(), model_path)
 
     def train(self):
@@ -103,9 +104,9 @@ class RLAlgo():
             start = time.time()
 
             self.start_epoch()
-            
+
             explore_start_time = time.time()
-            training_epoch_info =  self.collector.train_one_epoch()
+            training_epoch_info = self.collector.train_one_epoch()
             for reward in training_epoch_info["train_rewards"]:
                 self.training_episode_rewards.append(reward)
             explore_time = time.time() - explore_start_time
@@ -129,7 +130,7 @@ class RLAlgo():
             # del eval_infos["eval_rewards"]
 
             if self.best_eval is None or \
-                np.mean(eval_infos["eval_rewards"]) > self.best_eval:
+                    np.mean(eval_infos["eval_rewards"]) > self.best_eval:
                 self.best_eval = np.mean(eval_infos["eval_rewards"])
                 self.snapshot(self.save_dir, 'best')
             del eval_infos["eval_rewards"]
@@ -145,7 +146,7 @@ class RLAlgo():
             infos.update(finish_epoch_info)
 
             self.logger.add_epoch_info(epoch, total_frames,
-                time.time() - start, infos )
+                                       time.time() - start, infos)
 
             if epoch % self.save_interval == 0:
                 self.snapshot(self.save_dir, epoch)
@@ -169,7 +170,7 @@ class RLAlgo():
     def networks(self):
         return [
         ]
-    
+
     @property
     def snapshot_networks(self):
         return [
@@ -179,7 +180,7 @@ class RLAlgo():
     def target_networks(self):
         return [
         ]
-    
+
     def to(self, device):
         for net in self.networks:
             net.to(device)

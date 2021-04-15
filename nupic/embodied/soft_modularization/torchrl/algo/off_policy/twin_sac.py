@@ -7,6 +7,7 @@ from torch import nn as nn
 
 from .off_rl_algo import OffRLAlgo
 
+
 class TwinSAC(OffRLAlgo):
     """
     SAC
@@ -16,15 +17,15 @@ class TwinSAC(OffRLAlgo):
             self,
             pf, vf,
             qf1, qf2,
-            plr,vlr,qlr,
+            plr, vlr, qlr,
             optimizer_class=optim.Adam,
-            
+
             policy_std_reg_weight=1e-3,
             policy_mean_reg_weight=1e-3,
 
-            reparameterization = True,
-            automatic_entropy_tuning = True,
-            target_entropy = None,
+            reparameterization=True,
+            automatic_entropy_tuning=True,
+            target_entropy=None,
             **kwargs
     ):
         super(TwinSAC, self).__init__(**kwargs)
@@ -58,7 +59,7 @@ class TwinSAC(OffRLAlgo):
             self.pf.parameters(),
             lr=self.plr,
         )
-        
+
         self.automatic_entropy_tuning = automatic_entropy_tuning
         if self.automatic_entropy_tuning:
             if target_entropy:
@@ -80,7 +81,6 @@ class TwinSAC(OffRLAlgo):
 
         self.reparameterization = reparameterization
 
-
     def update(self, batch):
         self.training_update_num += 1
         obs = batch['obs']
@@ -89,22 +89,22 @@ class TwinSAC(OffRLAlgo):
         rewards = batch['rewards']
         terminals = batch['terminals']
 
-        rewards = torch.Tensor(rewards).to( self.device )
-        terminals = torch.Tensor(terminals).to( self.device )
-        obs = torch.Tensor(obs).to( self.device )
-        actions = torch.Tensor(actions).to( self.device )
-        next_obs = torch.Tensor(next_obs).to( self.device )
+        rewards = torch.Tensor(rewards).to(self.device)
+        terminals = torch.Tensor(terminals).to(self.device)
+        obs = torch.Tensor(obs).to(self.device)
+        actions = torch.Tensor(actions).to(self.device)
+        next_obs = torch.Tensor(next_obs).to(self.device)
 
         """
         Policy operations.
         """
-        sample_info = self.pf.explore(obs, return_log_probs=True )
+        sample_info = self.pf.explore(obs, return_log_probs=True)
 
-        mean        = sample_info["mean"]
-        log_std     = sample_info["log_std"]
+        mean = sample_info["mean"]
+        log_std = sample_info["log_std"]
         new_actions = sample_info["action"]
-        log_probs   = sample_info["log_prob"]
-        ent         = sample_info["ent"]
+        log_probs = sample_info["log_prob"]
+        ent = sample_info["ent"]
 
         q1_pred = self.qf1([obs, actions])
         q2_pred = self.qf2([obs, actions])
@@ -128,15 +128,15 @@ class TwinSAC(OffRLAlgo):
         """
         target_v_values = self.target_vf(next_obs)
         q_target = rewards + (1. - terminals) * self.discount * target_v_values
-        qf1_loss = self.qf_criterion( q1_pred, q_target.detach())
-        qf2_loss = self.qf_criterion( q2_pred, q_target.detach())
+        qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
+        qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
 
         """
         VF Loss
         """
         q_new_actions = torch.min(self.qf1([obs, new_actions]), self.qf2([obs, new_actions]))
         v_target = q_new_actions - alpha * log_probs
-        vf_loss = self.vf_criterion( v_pred, v_target.detach())
+        vf_loss = self.vf_criterion(v_pred, v_target.detach())
 
         """
         Policy Loss
@@ -144,16 +144,16 @@ class TwinSAC(OffRLAlgo):
         if not self.reparameterization:
             log_policy_target = q_new_actions - v_pred
             policy_loss = (
-                log_probs * ( alpha * log_probs - log_policy_target).detach()
+                    log_probs * (alpha * log_probs - log_policy_target).detach()
             ).mean()
         else:
-            policy_loss = ( alpha * log_probs - q_new_actions).mean()
+            policy_loss = (alpha * log_probs - q_new_actions).mean()
 
-        std_reg_loss = self.policy_std_reg_weight * (log_std**2).mean()
-        mean_reg_loss = self.policy_mean_reg_weight * (mean**2).mean()
+        std_reg_loss = self.policy_std_reg_weight * (log_std ** 2).mean()
+        mean_reg_loss = self.policy_mean_reg_weight * (mean ** 2).mean()
 
         policy_loss += std_reg_loss + mean_reg_loss
-        
+
         """
         Update Networks
         """
@@ -227,5 +227,5 @@ class TwinSAC(OffRLAlgo):
     @property
     def target_networks(self):
         return [
-            ( self.vf, self.target_vf )
+            (self.vf, self.target_vf)
         ]

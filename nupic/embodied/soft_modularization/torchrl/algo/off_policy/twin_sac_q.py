@@ -7,6 +7,7 @@ from torch import nn as nn
 
 from .off_rl_algo import OffRLAlgo
 
+
 class TwinSACQ(OffRLAlgo):
     """
     Twin SAC without V
@@ -78,27 +79,27 @@ class TwinSACQ(OffRLAlgo):
 
     def update(self, batch):
         self.training_update_num += 1
-        obs       = batch['obs']
-        actions   = batch['acts']
-        next_obs  = batch['next_obs']
-        rewards   = batch['rewards']
+        obs = batch['obs']
+        actions = batch['acts']
+        next_obs = batch['next_obs']
+        rewards = batch['rewards']
         terminals = batch['terminals']
 
-        rewards   = torch.Tensor(rewards).to( self.device )
-        terminals = torch.Tensor(terminals).to( self.device )
-        obs       = torch.Tensor(obs).to( self.device )
-        actions   = torch.Tensor(actions).to( self.device )
-        next_obs  = torch.Tensor(next_obs).to( self.device )
+        rewards = torch.Tensor(rewards).to(self.device)
+        terminals = torch.Tensor(terminals).to(self.device)
+        obs = torch.Tensor(obs).to(self.device)
+        actions = torch.Tensor(actions).to(self.device)
+        next_obs = torch.Tensor(next_obs).to(self.device)
 
         """
         Policy operations.
         """
-        sample_info = self.pf.explore(obs, return_log_probs=True )
+        sample_info = self.pf.explore(obs, return_log_probs=True)
 
-        mean        = sample_info["mean"]
-        log_std     = sample_info["log_std"]
+        mean = sample_info["mean"]
+        log_std = sample_info["log_std"]
         new_actions = sample_info["action"]
-        log_probs   = sample_info["log_prob"]
+        log_probs = sample_info["log_prob"]
 
         q1_pred = self.qf1([obs, actions])
         q2_pred = self.qf2([obs, actions])
@@ -118,9 +119,9 @@ class TwinSACQ(OffRLAlgo):
             alpha_loss = 0
 
         with torch.no_grad():
-            target_sample_info = self.pf.explore(next_obs, return_log_probs=True )
+            target_sample_info = self.pf.explore(next_obs, return_log_probs=True)
 
-            target_actions   = target_sample_info["action"]
+            target_actions = target_sample_info["action"]
             target_log_probs = target_sample_info["log_prob"]
 
             target_q1_pred = self.target_qf1([next_obs, target_actions])
@@ -148,13 +149,13 @@ class TwinSACQ(OffRLAlgo):
             raise NotImplementedError
         else:
             assert log_probs.shape == q_new_actions.shape
-            policy_loss = ( alpha * log_probs - q_new_actions).mean()
+            policy_loss = (alpha * log_probs - q_new_actions).mean()
 
-        std_reg_loss = self.policy_std_reg_weight * (log_std**2).mean()
-        mean_reg_loss = self.policy_mean_reg_weight * (mean**2).mean()
+        std_reg_loss = self.policy_std_reg_weight * (log_std ** 2).mean()
+        mean_reg_loss = self.policy_mean_reg_weight * (mean ** 2).mean()
 
         policy_loss += std_reg_loss + mean_reg_loss
-        
+
         """
         Update Networks
         """
@@ -217,7 +218,7 @@ class TwinSACQ(OffRLAlgo):
             self.target_qf1,
             self.target_qf2
         ]
-    
+
     @property
     def snapshot_networks(self):
         return [
@@ -229,6 +230,6 @@ class TwinSACQ(OffRLAlgo):
     @property
     def target_networks(self):
         return [
-            ( self.qf1, self.target_qf1 ),
-            ( self.qf2, self.target_qf2 )
+            (self.qf1, self.target_qf1),
+            (self.qf2, self.target_qf2)
         ]

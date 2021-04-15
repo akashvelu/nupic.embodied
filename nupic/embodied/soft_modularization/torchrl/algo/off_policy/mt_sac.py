@@ -3,10 +3,12 @@ import torch
 import nupic.embodied.soft_modularization.torchrl.policies as policies
 import torch.nn.functional as F
 
+
 class MTSAC(TwinSACQ):
     """"
     Support Different Temperature for different tasks
     """
+
     def __init__(self, task_nums,
                  temp_reweight=False,
                  grad_clip=True,
@@ -22,7 +24,7 @@ class MTSAC(TwinSACQ):
                 lr=self.plr,
             )
         self.sample_key = ["obs", "next_obs", "acts", "rewards",
-                           "terminals",  "task_idxs"]
+                           "terminals", "task_idxs"]
 
         self.pf_flag = isinstance(self.pf,
                                   policies.EmbeddingGuassianContPolicyBase)
@@ -46,7 +48,7 @@ class MTSAC(TwinSACQ):
             embedding_inputs = batch["embedding_inputs"]
 
         if self.idx_flag:
-            task_idx    = batch['task_idxs']
+            task_idx = batch['task_idxs']
 
         rewards = torch.Tensor(rewards).to(self.device)
         terminals = torch.Tensor(terminals).to(self.device)
@@ -58,7 +60,7 @@ class MTSAC(TwinSACQ):
             embedding_inputs = torch.Tensor(embedding_inputs).to(self.device)
 
         if self.idx_flag:
-            task_idx    = torch.Tensor(task_idx).to( self.device ).long()
+            task_idx = torch.Tensor(task_idx).to(self.device).long()
 
         self.pf.train()
         self.qf1.train()
@@ -68,12 +70,10 @@ class MTSAC(TwinSACQ):
         Policy operations.
         """
         if self.idx_flag:
-            sample_info = self.pf.explore(obs, task_idx,
-                                        return_log_probs=True)
+            sample_info = self.pf.explore(obs, task_idx, return_log_probs=True)
         else:
             if self.pf_flag:
-                sample_info = self.pf.explore(obs, embedding_inputs,
-                                            return_log_probs=True)
+                sample_info = self.pf.explore(obs, embedding_inputs, return_log_probs=True)
             else:
                 sample_info = self.pf.explore(obs, return_log_probs=True)
 
@@ -100,7 +100,7 @@ class MTSAC(TwinSACQ):
             """
             batch_size = log_probs.shape[0]
             log_alphas = (self.log_alpha.unsqueeze(0)).expand(
-                            (batch_size, self.task_nums))
+                (batch_size, self.task_nums))
             log_alphas = log_alphas.unsqueeze(-1)
             # log_alphas = log_alphas.gather(1, task_idx)
 
@@ -126,8 +126,8 @@ class MTSAC(TwinSACQ):
         with torch.no_grad():
             if self.idx_flag:
                 target_sample_info = self.pf.explore(next_obs,
-                                                    task_idx,
-                                                    return_log_probs=True)
+                                                     task_idx,
+                                                     return_log_probs=True)
             else:
                 if self.pf_flag:
                     target_sample_info = self.pf.explore(next_obs,
@@ -135,7 +135,7 @@ class MTSAC(TwinSACQ):
                                                          return_log_probs=True)
                 else:
                     target_sample_info = self.pf.explore(next_obs,
-                                                        return_log_probs=True)
+                                                         return_log_probs=True)
 
             target_actions = target_sample_info["action"]
             target_log_probs = target_sample_info["log_prob"]
@@ -148,9 +148,9 @@ class MTSAC(TwinSACQ):
             else:
                 if self.pf_flag:
                     target_q1_pred = self.target_qf1([next_obs, target_actions],
-                                                    embedding_inputs)
+                                                     embedding_inputs)
                     target_q2_pred = self.target_qf2([next_obs, target_actions],
-                                                    embedding_inputs)
+                                                     embedding_inputs)
                 else:
                     target_q1_pred = self.target_qf1([next_obs, target_actions])
                     target_q2_pred = self.target_qf2([next_obs, target_actions])
@@ -195,8 +195,8 @@ class MTSAC(TwinSACQ):
             policy_loss = (reweight_coeff *
                            (alphas * log_probs - q_new_actions)).mean()
 
-        std_reg_loss = self.policy_std_reg_weight * (log_std**2).mean()
-        mean_reg_loss = self.policy_mean_reg_weight * (mean**2).mean()
+        std_reg_loss = self.policy_std_reg_weight * (log_std ** 2).mean()
+        mean_reg_loss = self.policy_mean_reg_weight * (mean ** 2).mean()
 
         policy_loss += std_reg_loss + mean_reg_loss
 

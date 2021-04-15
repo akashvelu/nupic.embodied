@@ -1,9 +1,4 @@
-
-import gym
 from gym import Wrapper
-from gym.spaces import Box
-import numpy as np
-from metaworld.envs.mujoco.sawyer_xyz import *
 from metaworld.envs.mujoco.multitask_env import MultiClassMultiTaskEnv
 from metaworld.core.serializable import Serializable
 import sys

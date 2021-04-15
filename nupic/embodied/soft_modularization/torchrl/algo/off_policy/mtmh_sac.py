@@ -3,9 +3,10 @@ import torch
 import nupic.embodied.soft_modularization.torchrl.algo.utils as atu
 import torch.nn.functional as F
 
+
 class MTMHSAC(MTSAC):
     ## Multi Task Multi Head SAC (Input Processed)
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.head_idx = list(range(self.task_nums))
         self.sample_key = ["obs", "next_obs", "acts", "rewards", "task_idxs",
@@ -15,26 +16,26 @@ class MTMHSAC(MTSAC):
 
     def update(self, batch):
         self.training_update_num += 1
-        
-        obs       = batch['obs']
-        actions   = batch['acts']
-        next_obs  = batch['next_obs']
-        rewards   = batch['rewards']
+
+        obs = batch['obs']
+        actions = batch['acts']
+        next_obs = batch['next_obs']
+        rewards = batch['rewards']
         terminals = batch['terminals']
 
         # For Task
-        task_idx    = batch['task_idxs']
+        task_idx = batch['task_idxs']
         # task_onehot = batch['task_onehot']
         if self.pf_flag:
             embedding_inputs = batch["embedding_inputs"]
 
-        rewards = torch.Tensor(rewards).to( self.device )
-        terminals = torch.Tensor(terminals).to( self.device )
-        obs = torch.Tensor(obs).to( self.device )
-        actions = torch.Tensor(actions).to( self.device )
-        next_obs = torch.Tensor(next_obs).to( self.device )
+        rewards = torch.Tensor(rewards).to(self.device)
+        terminals = torch.Tensor(terminals).to(self.device)
+        obs = torch.Tensor(obs).to(self.device)
+        actions = torch.Tensor(actions).to(self.device)
+        next_obs = torch.Tensor(next_obs).to(self.device)
         # For Task
-        task_idx    = torch.Tensor(task_idx).to( self.device ).long()
+        task_idx = torch.Tensor(task_idx).to(self.device).long()
         # task_onehot = torch.Tensor(task_onehot).to( self.device )
 
         if self.pf_flag:
@@ -45,24 +46,24 @@ class MTMHSAC(MTSAC):
         """
         if self.pf_flag:
             sample_info = self.pf.explore(obs, embedding_inputs,
-                self.head_idx, return_log_probs=True )
+                                          self.head_idx, return_log_probs=True)
         else:
-            sample_info = self.pf.explore(obs, self.head_idx, return_log_probs=True )
+            sample_info = self.pf.explore(obs, self.head_idx, return_log_probs=True)
 
-        mean_list        = sample_info["mean"]
-        log_std_list     = sample_info["log_std"]
+        mean_list = sample_info["mean"]
+        log_std_list = sample_info["log_std"]
         new_actions_list = sample_info["action"]
-        log_probs_list   = sample_info["log_prob"]
+        log_probs_list = sample_info["log_prob"]
         # ent_list         = sample_info["ent"]
 
-        means = atu.unsqe_cat_gather(mean_list, task_idx, dim = 1)
+        means = atu.unsqe_cat_gather(mean_list, task_idx, dim=1)
 
-        log_stds = atu.unsqe_cat_gather(log_std_list, task_idx, dim = 1)
+        log_stds = atu.unsqe_cat_gather(log_std_list, task_idx, dim=1)
 
-        new_actions = atu.unsqe_cat_gather(new_actions_list, task_idx, dim = 1)
+        new_actions = atu.unsqe_cat_gather(new_actions_list, task_idx, dim=1)
 
         # log_probs = torch.cat
-        log_probs = atu.unsqe_cat_gather(log_probs_list, task_idx, dim = 1)
+        log_probs = atu.unsqe_cat_gather(log_probs_list, task_idx, dim=1)
 
         if self.pf_flag:
             q1_pred_list = self.qf1([obs, actions], embedding_inputs, self.head_idx)
@@ -70,9 +71,9 @@ class MTMHSAC(MTSAC):
         else:
             q1_pred_list = self.qf1([obs, actions], self.head_idx)
             q2_pred_list = self.qf2([obs, actions], self.head_idx)
-            
-        q1_preds = atu.unsqe_cat_gather(q1_pred_list, task_idx, dim = 1)
-        q2_preds = atu.unsqe_cat_gather(q2_pred_list, task_idx, dim = 1)
+
+        q1_preds = atu.unsqe_cat_gather(q1_pred_list, task_idx, dim=1)
+        q2_preds = atu.unsqe_cat_gather(q2_pred_list, task_idx, dim=1)
 
         reweight_coeff = 1
         if self.automatic_entropy_tuning:
@@ -108,27 +109,27 @@ class MTMHSAC(MTSAC):
         with torch.no_grad():
             if self.pf_flag:
                 target_sample_info = self.pf.explore(next_obs, embedding_inputs,
-                    self.head_idx, return_log_probs=True )
+                                                     self.head_idx, return_log_probs=True)
             else:
-                target_sample_info = self.pf.explore(next_obs, self.head_idx, return_log_probs=True )
+                target_sample_info = self.pf.explore(next_obs, self.head_idx, return_log_probs=True)
 
-            target_actions_list   = target_sample_info["action"]
-            target_actions = atu.unsqe_cat_gather(target_actions_list, task_idx, dim = 1)
+            target_actions_list = target_sample_info["action"]
+            target_actions = atu.unsqe_cat_gather(target_actions_list, task_idx, dim=1)
 
             target_log_probs_list = target_sample_info["log_prob"]
-            target_log_probs = atu.unsqe_cat_gather(target_log_probs_list, task_idx, dim = 1)
+            target_log_probs = atu.unsqe_cat_gather(target_log_probs_list, task_idx, dim=1)
 
             if self.pf_flag:
                 target_q1_pred_list = self.target_qf1([next_obs, target_actions],
-                    embedding_inputs, self.head_idx)    
+                                                      embedding_inputs, self.head_idx)
                 target_q2_pred_list = self.target_qf2([next_obs, target_actions],
-                    embedding_inputs, self.head_idx)
+                                                      embedding_inputs, self.head_idx)
             else:
-                target_q1_pred_list = self.target_qf1([next_obs, target_actions], self.head_idx)    
+                target_q1_pred_list = self.target_qf1([next_obs, target_actions], self.head_idx)
                 target_q2_pred_list = self.target_qf2([next_obs, target_actions], self.head_idx)
 
-            target_q1_pred = atu.unsqe_cat_gather(target_q1_pred_list, task_idx, dim = 1)
-            target_q2_pred = atu.unsqe_cat_gather(target_q2_pred_list, task_idx, dim = 1)
+            target_q1_pred = atu.unsqe_cat_gather(target_q1_pred_list, task_idx, dim=1)
+            target_q2_pred = atu.unsqe_cat_gather(target_q2_pred_list, task_idx, dim=1)
 
             min_target_q = torch.min(target_q1_pred, target_q2_pred)
             target_v_values = min_target_q - alphas * target_log_probs
@@ -148,20 +149,20 @@ class MTMHSAC(MTSAC):
         # """
         if self.pf_flag:
             q1_new_actions_list = self.qf1([obs, new_actions],
-                embedding_inputs, self.head_idx)
+                                           embedding_inputs, self.head_idx)
             q2_new_actions_list = self.qf2([obs, new_actions],
-                embedding_inputs, self.head_idx)
+                                           embedding_inputs, self.head_idx)
         else:
             q1_new_actions_list = self.qf1([obs, new_actions], self.head_idx)
             q2_new_actions_list = self.qf2([obs, new_actions], self.head_idx)
 
-        q1_new_actions = atu.unsqe_cat_gather(q1_new_actions_list, task_idx, dim = 1)
-        q2_new_actions = atu.unsqe_cat_gather(q2_new_actions_list, task_idx, dim = 1)
+        q1_new_actions = atu.unsqe_cat_gather(q1_new_actions_list, task_idx, dim=1)
+        q2_new_actions = atu.unsqe_cat_gather(q2_new_actions_list, task_idx, dim=1)
 
         q_new_actions = torch.min(
             q1_new_actions,
             q2_new_actions
-        ) 
+        )
 
         """
         Policy Loss
@@ -171,10 +172,10 @@ class MTMHSAC(MTSAC):
         else:
             # policy_loss = ( alphas * log_probs - q_new_actions).mean()
             assert log_probs.shape == q_new_actions.shape
-            policy_loss = (reweight_coeff * ( alphas * log_probs - q_new_actions)).mean()
+            policy_loss = (reweight_coeff * (alphas * log_probs - q_new_actions)).mean()
 
-        std_reg_loss = self.policy_std_reg_weight * (log_stds**2).mean()
-        mean_reg_loss = self.policy_mean_reg_weight * (means**2).mean()
+        std_reg_loss = self.policy_std_reg_weight * (log_stds ** 2).mean()
+        mean_reg_loss = self.policy_mean_reg_weight * (means ** 2).mean()
 
         policy_loss += std_reg_loss + mean_reg_loss
 

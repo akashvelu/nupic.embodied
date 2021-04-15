@@ -24,9 +24,9 @@ def copy_model_params_from_to(source, target):
         target_param.data.copy_(param.data)
 
 
-def unsqe_cat_gather(tensor_list, idx, dim = 1 ):
+def unsqe_cat_gather(tensor_list, idx, dim=1):
     tensor_list = [tensor.unsqueeze(dim) for tensor in tensor_list]
-    tensors = torch.cat(tensor_list, dim = dim)
+    tensors = torch.cat(tensor_list, dim=dim)
 
     target_shape = list(tensors.shape)
     target_shape[dim] = 1
@@ -43,4 +43,3 @@ def update_linear_schedule(optimizer, epoch, total_num_epochs, initial_lr):
     lr = initial_lr - (initial_lr * (epoch / float(total_num_epochs)))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
-   
