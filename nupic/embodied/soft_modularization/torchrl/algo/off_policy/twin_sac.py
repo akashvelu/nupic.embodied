@@ -19,10 +19,8 @@ class TwinSAC(OffRLAlgo):
             qf1, qf2,
             plr, vlr, qlr,
             optimizer_class=optim.Adam,
-
             policy_std_reg_weight=1e-3,
             policy_mean_reg_weight=1e-3,
-
             reparameterization=True,
             automatic_entropy_tuning=True,
             target_entropy=None,

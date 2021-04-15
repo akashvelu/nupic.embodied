@@ -36,6 +36,7 @@ class RLAlgo():
                  save_dir=None
                  ):
 
+        self.current_epoch = 0
         self.env = env
 
         self.continuous = isinstance(self.env.action_space, gym.spaces.Box)
@@ -105,19 +106,21 @@ class RLAlgo():
 
             self.start_epoch()
 
+            # collect training data for this epoch (using exploration policy)
             explore_start_time = time.time()
             training_epoch_info = self.collector.train_one_epoch()
             for reward in training_epoch_info["train_rewards"]:
                 self.training_episode_rewards.append(reward)
             explore_time = time.time() - explore_start_time
 
+            # do training updates
             train_start_time = time.time()
             self.update_per_epoch()
             train_time = time.time() - train_start_time
-
             finish_epoch_info = self.finish_epoch()
-
             eval_start_time = time.time()
+
+            # evaluate policy
             eval_infos = self.collector.eval_one_epoch()
             eval_time = time.time() - eval_start_time
 
@@ -127,7 +130,6 @@ class RLAlgo():
 
             for reward in eval_infos["eval_rewards"]:
                 self.episode_rewards.append(reward)
-            # del eval_infos["eval_rewards"]
 
             if self.best_eval is None or \
                     np.mean(eval_infos["eval_rewards"]) > self.best_eval:

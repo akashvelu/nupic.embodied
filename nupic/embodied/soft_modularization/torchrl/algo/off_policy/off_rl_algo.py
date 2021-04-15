@@ -10,16 +10,12 @@ class OffRLAlgo(RLAlgo):
     """
 
     def __init__(self,
-
                  pretrain_epochs=0,
-
                  min_pool=0,
-
                  target_hard_update_period=1000,
                  use_soft_update=True,
                  tau=0.001,
                  opt_times=1,
-
                  **kwargs
                  ):
         super(OffRLAlgo, self).__init__(**kwargs)
