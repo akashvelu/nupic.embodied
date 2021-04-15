@@ -200,11 +200,11 @@ class SAC(OffRLAlgo):
         ]
 
     @property
-    def snapshot_networks(self):
+    def snapshot_info(self):
         return [
-            ["pf", self.pf],
-            ["qf", self.qf],
-            ["vf", self.vf]
+            ["pf", self.pf, self.pf_optimizer],
+            ["qf", self.qf, self.qf_optimizer],
+            ["vf", self.vf, self.vf_optimizer]
         ]
 
     @property
@@ -219,12 +219,4 @@ class SAC(OffRLAlgo):
             self.pf_optimizer,
             self.vf_optimizer,
             self.qf_optimizer,
-        ]
-
-    @property
-    def snapshot_optimizers(self):
-        return [
-            ["pf_optimizer", self.pf_optimizer],
-            ["qf_optimizer", self.qf_optimizer],
-            ["vf_optimizer", self.vf_optimizer],
         ]

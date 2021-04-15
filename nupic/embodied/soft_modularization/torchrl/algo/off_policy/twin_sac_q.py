@@ -218,11 +218,11 @@ class TwinSACQ(OffRLAlgo):
         ]
 
     @property
-    def snapshot_networks(self):
+    def snapshot_info(self):
         return [
-            ["pf", self.pf],
-            ["qf1", self.qf1],
-            ["qf2", self.qf2],
+            ["pf", self.pf, self.pf_optimizer],
+            ["qf1", self.qf1, self.qf1_optimizer],
+            ["qf2", self.qf2, self.qf2_optimizer],
         ]
 
     @property
@@ -238,12 +238,4 @@ class TwinSACQ(OffRLAlgo):
             self.pf_optimizer,
             self.qf1_optimizer,
             self.qf2_optimizer
-        ]
-
-    @property
-    def snapshot_optimizers(self):
-        return [
-            ["pf_optimizer", self.pf_optimizer],
-            ["qf1_optimizer", self.qf1_optimizer],
-            ["qf2_optimizer", self.qf2_optimizer],
         ]

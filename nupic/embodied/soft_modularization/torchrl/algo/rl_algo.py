@@ -87,10 +87,16 @@ class RLAlgo():
         pass
 
     def snapshot(self, prefix, epoch):
-        for name, network in self.snapshot_networks:
-            model_file_name = "model_{}_{}.pth".format(name, epoch)
-            model_path = osp.join(prefix, model_file_name)
+        for name, network, optimizer in self.snapshot_info:
+            epoch_path = osp.join(prefix, "epoch_{}/".format(epoch))
+            if not os.path.exists(epoch_path):
+                os.mkdir(epoch_path)
+            model_file_name = "model_{}.pth".format(name)
+            optimizer_file_name = "optimizer_{}.pth".format(name)
+            model_path = osp.join(epoch_path, model_file_name)
+            optimizer_path = osp.join(epoch_path, optimizer_file_name)
             torch.save(network.state_dict(), model_path)
+            torch.save(optimizer.state_dict(), optimizer_path)
 
     def train(self):
         self.pretrain()
@@ -173,7 +179,7 @@ class RLAlgo():
         return []
 
     @property
-    def snapshot_networks(self):
+    def snapshot_info(self):
         return []
 
     @property
