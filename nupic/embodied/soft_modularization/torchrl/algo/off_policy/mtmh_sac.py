@@ -1,9 +1,6 @@
-from .twin_sac_q import TwinSACQ
 from .mt_sac import MTSAC
-import copy
 import torch
 import nupic.embodied.soft_modularization.torchrl.algo.utils as atu
-import numpy as np
 import torch.nn.functional as F
 
 class MTMHSAC(MTSAC):

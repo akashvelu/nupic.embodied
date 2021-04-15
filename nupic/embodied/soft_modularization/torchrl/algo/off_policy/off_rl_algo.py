@@ -1,10 +1,7 @@
 import time
 import numpy as np
-import math
-
-import torch
-
 from nupic.embodied.soft_modularization.torchrl.algo.rl_algo import RLAlgo
+from nupic.torch.modules.sparse_weights import rezero_weights
 
 class OffRLAlgo(RLAlgo):
     """
@@ -50,7 +47,12 @@ class OffRLAlgo(RLAlgo):
         for _ in range( self.opt_times ):
             batch = self.replay_buffer.random_batch(self.batch_size, self.sample_key)
             infos = self.update( batch )
+            self.post_gradient_step()
             self.logger.add_update_info( infos )
+
+    def post_gradient_step(self):
+        for net in self.networks:
+            net.apply(rezero_weights)
 
     def pretrain(self):
         total_frames = 0

@@ -4,8 +4,7 @@ from torch.distributions import Normal
 import numpy as np
 import nupic.embodied.soft_modularization.torchrl.networks as networks
 from .distribution import TanhNormal
-import torch.nn.functional as F
-import nupic.embodied.soft_modularization.torchrl.networks.init as init
+
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20

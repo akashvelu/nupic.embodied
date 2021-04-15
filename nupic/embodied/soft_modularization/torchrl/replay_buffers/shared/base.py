@@ -1,8 +1,6 @@
 # Since we could ensure that multi-proces would write into the different parts
 # For efficiency, we use Multiprocess.RawArray
 
-from torch.multiprocessing import RawArray
-from multiprocessing.managers import BaseProxy
 import numpy as np
 
 from nupic.embodied.soft_modularization.torchrl.replay_buffers.base import BaseReplayBuffer

@@ -3,9 +3,6 @@ from nupic.embodied.soft_modularization.torchrl.policies.distribution import Tan
 from nupic.embodied.soft_modularization.networks.nets import DendriticMLP
 from nupic.embodied.soft_modularization.torchrl.policies import EmbeddingGuassianContPolicyBase
 
-import abc
-from torch import nn
-
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 

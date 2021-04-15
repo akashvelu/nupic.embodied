@@ -1,8 +1,5 @@
 from .twin_sac_q import TwinSACQ
-import copy
 import torch
-import numpy as np
-
 import nupic.embodied.soft_modularization.torchrl.policies as policies
 import torch.nn.functional as F
 
@@ -273,3 +270,4 @@ class MTSAC(TwinSACQ):
                                                     reshape=False)
             infos = self.update(batch)
             self.logger.add_update_info(infos)
+            self.post_gradient_step()
