@@ -24,7 +24,7 @@ from nupic.research.frameworks.dendrites.modules import DendriticMLP
 from nupic.research.frameworks.pytorch.models.common_models import SparseMLP
 
 
-class FlattenSparsemLP(SparseMLP):
+class FlattenSparseMLP(SparseMLP):
     def forward(self, x):
         x = torch.cat(x, dim=-1)
         return super().forward(x)

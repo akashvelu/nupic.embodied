@@ -62,8 +62,8 @@ class SingleTaskParallelCollectorBase(ParallelCollector):
                 success += current_success
 
             shared_que.put({
-                'eval_rewards': eval_rews,
-                'success_rate': success / env_info.eval_episodes
+                'eval/eval_rewards': eval_rews,
+                'eval/success_rate': success / env_info.eval_episodes
             })
 
     def start_worker(self):
@@ -106,8 +106,8 @@ class SingleTaskParallelCollectorBase(ParallelCollector):
             mean_success_rate += worker_rst["success_rate"]
         
         return {
-            'eval_rewards':eval_rews,
-            'mean_success_rate': mean_success_rate / self.eval_worker_nums
+            'eval/eval_rewards':eval_rews,
+            'eval/mean_success_rate': mean_success_rate / self.eval_worker_nums
         }
     
     

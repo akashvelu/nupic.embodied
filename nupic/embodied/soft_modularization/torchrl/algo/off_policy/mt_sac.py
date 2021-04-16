@@ -77,10 +77,10 @@ class MTSAC(TwinSACQ):
             else:
                 sample_info = self.pf.explore(obs, return_log_probs=True)
 
-        mean = sample_info["mean"]
-        log_std = sample_info["log_std"]
+        new_action_mean = sample_info["mean"]
+        new_action_log_std = sample_info["log_std"]
         new_actions = sample_info["action"]
-        log_probs = sample_info["log_prob"]
+        new_action_log_prob = sample_info["log_prob"]
 
         if self.idx_flag:
             q1_pred = self.qf1([obs, actions], task_idx)
@@ -98,14 +98,14 @@ class MTSAC(TwinSACQ):
             """
             Alpha Loss
             """
-            batch_size = log_probs.shape[0]
+            batch_size = new_action_log_prob.shape[0]
             log_alphas = (self.log_alpha.unsqueeze(0)).expand(
                 (batch_size, self.task_nums))
             log_alphas = log_alphas.unsqueeze(-1)
             # log_alphas = log_alphas.gather(1, task_idx)
 
             alpha_loss = -(log_alphas *
-                           (log_probs + self.target_entropy).detach()).mean()
+                           (new_action_log_prob + self.target_entropy).detach()).mean()
 
             self.alpha_optimizer.zero_grad()
             alpha_loss.backward()
@@ -191,12 +191,12 @@ class MTSAC(TwinSACQ):
         if not self.reparameterization:
             raise NotImplementedError
         else:
-            assert log_probs.shape == q_new_actions.shape
+            assert new_action_log_prob.shape == q_new_actions.shape
             policy_loss = (reweight_coeff *
-                           (alphas * log_probs - q_new_actions)).mean()
+                           (alphas * new_action_log_prob - q_new_actions)).mean()
 
-        std_reg_loss = self.policy_std_reg_weight * (log_std ** 2).mean()
-        mean_reg_loss = self.policy_mean_reg_weight * (mean ** 2).mean()
+        std_reg_loss = self.policy_std_reg_weight * (new_action_log_std ** 2).mean()
+        mean_reg_loss = self.policy_mean_reg_weight * (new_action_mean ** 2).mean()
 
         policy_loss += std_reg_loss + mean_reg_loss
 
@@ -241,25 +241,25 @@ class MTSAC(TwinSACQ):
             info['Training/qf1_norm'] = qf1_norm.item()
             info['Training/qf2_norm'] = qf2_norm.item()
 
-        info['log_std/mean'] = log_std.mean().item()
-        info['log_std/std'] = log_std.std().item()
-        info['log_std/max'] = log_std.max().item()
-        info['log_std/min'] = log_std.min().item()
+        info['new_action_log_std/mean'] = new_action_log_std.mean().item()
+        info['new_action_log_std/std'] = new_action_log_std.std().item()
+        info['new_action_log_std/max'] = new_action_log_std.max().item()
+        info['new_action_log_std/min'] = new_action_log_std.min().item()
 
-        log_probs_display = log_probs.detach()
+        log_probs_display = new_action_log_prob.detach()
         log_probs_display = (log_probs_display.mean(0)).squeeze(1)
         for i in range(self.task_nums):
             info["log_prob_{}".format(i)] = log_probs_display[i].item()
 
-        info['log_probs/mean'] = log_probs.mean().item()
-        info['log_probs/std'] = log_probs.std().item()
-        info['log_probs/max'] = log_probs.max().item()
-        info['log_probs/min'] = log_probs.min().item()
+        info['new_action_log_probs/mean'] = new_action_log_prob.mean().item()
+        info['new_action_log_probs/std'] = new_action_log_prob.std().item()
+        info['new_action_log_probs/max'] = new_action_log_prob.max().item()
+        info['new_action_log_probs/min'] = new_action_log_prob.min().item()
 
-        info['mean/mean'] = mean.mean().item()
-        info['mean/std'] = mean.std().item()
-        info['mean/max'] = mean.max().item()
-        info['mean/min'] = mean.min().item()
+        info['new_action_mean/mean'] = new_action_mean.mean().item()
+        info['new_action_mean/std'] = new_action_mean.std().item()
+        info['new_action_mean/max'] = new_action_mean.max().item()
+        info['new_action_mean/min'] = new_action_mean.min().item()
 
         return info
 

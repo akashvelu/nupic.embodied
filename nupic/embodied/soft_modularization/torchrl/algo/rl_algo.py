@@ -63,7 +63,7 @@ class RLAlgo():
         # Logger & relevant setting
         self.logger = logger
 
-        self.episode_rewards = deque(maxlen=30)
+        self.eval_episode_rewards = deque(maxlen=30)
         self.training_episode_rewards = deque(maxlen=30)
         self.eval_episodes = eval_episodes
 
@@ -134,16 +134,16 @@ class RLAlgo():
 
             infos = {}
 
-            for reward in eval_infos["eval_rewards"]:
-                self.episode_rewards.append(reward)
+            for reward in eval_infos["eval/eval_rewards"]:
+                self.eval_episode_rewards.append(reward)
 
             if self.best_eval is None or \
-                    np.mean(eval_infos["eval_rewards"]) > self.best_eval:
-                self.best_eval = np.mean(eval_infos["eval_rewards"])
+                    np.mean(eval_infos["eval/eval_rewards"]) > self.best_eval:
+                self.best_eval = np.mean(eval_infos["eval/eval_rewards"])
                 self.snapshot(self.save_dir, 'best')
-            del eval_infos["eval_rewards"]
+            del eval_infos["eval/eval_rewards"]
 
-            infos["Running_Average_Rewards"] = np.mean(self.episode_rewards)
+            infos["Eval/Running_Average_Eval_Rewards"] = np.mean(self.eval_episode_rewards)
             infos["Train_Epoch_Reward"] = training_epoch_info["train_epoch_reward"]
             infos["Running_Training_Average_Rewards"] = np.mean(
                 self.training_episode_rewards)

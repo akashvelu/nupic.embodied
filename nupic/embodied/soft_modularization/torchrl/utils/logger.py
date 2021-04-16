@@ -48,9 +48,7 @@ class Logger():
     def log(self, info):
         self.logger.info(info)
 
-
     def add_update_info(self, infos):
-
         for info in infos:
             if info not in self.stored_infos:
                 self.stored_infos[info] = []
@@ -68,7 +66,6 @@ class Logger():
         self.logger.info("Time Consumed:{}s".format(total_time))
         self.logger.info("Total Frames:{}s".format(total_frames))
         infos["train_steps"] = total_frames
-        infos["custom_step"] = total_frames
 
         tabulate_list = [["Name", "Value"]]
         if self.use_wandb:
@@ -93,7 +90,7 @@ class Logger():
             temp_list = [info]
             for name, method in zip(name_list, method_list):
                 processed_info = method(self.stored_infos[info])
-                wandb.log({"{}_{}".format(info, name): processed_info, "custom_step": total_frames})
+                wandb.log({"{}_{}".format(info, name): processed_info, "train_steps": total_frames})
 
                 self.tf_writer.add_scalar("{}_{}".format(info, name),
                                           processed_info, total_frames)
