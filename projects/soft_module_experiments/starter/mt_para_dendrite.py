@@ -1,61 +1,78 @@
+import os
+import os.path as osp
+import random
 import sys
 
-sys.path.append(".")
-
-import torch
-
-import os
-import time
-import os.path as osp
-
 import numpy as np
+import torch
+import wandb
 
-from nupic.embodied.soft_modularization.torchrl.utils import get_args
-from nupic.embodied.soft_modularization.torchrl.utils import get_params
+import nupic.embodied.soft_modularization.networks.nets as networks
+import nupic.embodied.soft_modularization.networks.policies as policies
+from nupic.embodied.soft_modularization.metaworld_utils.meta_env import get_meta_env
+from nupic.embodied.soft_modularization.torchrl.algo import MTSAC
+from nupic.embodied.soft_modularization.torchrl.collector.para.async_mt import (
+    AsyncMultiTaskParallelCollectorUniform,
+)
+from nupic.embodied.soft_modularization.torchrl.replay_buffers.shared import (
+    AsyncSharedReplayBuffer,
+)
+from nupic.embodied.soft_modularization.torchrl.utils import (
+    Logger,
+    get_args,
+    get_params,
+)
 
-from nupic.embodied.soft_modularization.torchrl.utils import Logger
+sys.path.append(".")
 
 args = get_args()
 params = get_params(args.config)
 
-import nupic.embodied.soft_modularization.networks.policies as policies
-import nupic.embodied.soft_modularization.networks.nets as networks
-
-from nupic.embodied.soft_modularization.torchrl.algo import MTSAC
-from nupic.embodied.soft_modularization.torchrl.collector.para.async_mt import AsyncMultiTaskParallelCollectorUniform
-
-from nupic.embodied.soft_modularization.torchrl.replay_buffers.shared import AsyncSharedReplayBuffer
-
-from nupic.embodied.soft_modularization.metaworld_utils.meta_env import get_meta_env
-
-import random
-
-
 def experiment(args):
     device = torch.device("cuda:{}".format(args.device) if args.cuda else "cpu")
 
+    assert "commit_history" in params
+    assert "nupic.embodied_commit" in params["commit_history"]
+    assert "nupic.torch_commit" in params["commit_history"]
+    assert "nupic.research_commit" in params["commit_history"]
+
+    # set up env
     env, cls_dicts, cls_args = get_meta_env(params['env_name'], params['env'], params['meta_env'])
 
+    # random seeds
     env.seed(args.seed)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     random.seed(args.seed)
+
     if args.cuda:
         torch.backends.cudnn.deterministic = True
-
-    buffer_param = params['replay_buffer']
 
     experiment_name = os.path.split(os.path.splitext(args.config)[0])[-1] if args.id is None \
         else args.id
     logger = Logger(experiment_name, params['env_name'], args.seed, params, args.log_dir)
+    if not args.disable_wandb:
+        kw_on = "kw_on" if params["net"]["kw"] else "kw_off"
+        weight_sparsity_on = "weight_sparsity_on" if params["net"]["weight_sparsity"] > 0.0 else "weight_sparsity_off"
+        wandb.init(
+            name=args.id,
+            entity=args.wandb_username,
+            project=params["env_name"],
+            config=params,
+            group="Dendrites_{}".format(params["env_name"]),
+            tags=[kw_on, weight_sparsity_on],
+            notes=str(params["commit_history"]),
+            dir=args.log_dir,
+            reinit=True
+        )
 
     params['general_setting']['env'] = env
     params['general_setting']['logger'] = logger
     params['general_setting']['device'] = device
 
+    # parallelism configuration
     import torch.multiprocessing as mp
     mp.set_start_method('spawn', force=True)
-
 
     example_ob = env.reset()
     example_embedding = env.active_task_one_hot
@@ -63,7 +80,7 @@ def experiment(args):
     pf = policies.DendriticGuassianContPolicy(
         input_size=env.observation_space.shape[0],
         dim_context=np.prod(example_embedding.shape),
-        output_dim=2 * env.action_space.shape[0],
+        output_size=2 * env.action_space.shape[0],
         **params['net']
     )
 
@@ -73,16 +90,16 @@ def experiment(args):
     qf1 = networks.FlattenDendriticMLP(
         input_size=env.observation_space.shape[0] + env.action_space.shape[0],
         dim_context=np.prod(example_embedding.shape),
-        output_dim=1,
+        output_size=1,
         **params['net'])
     qf2 = networks.FlattenDendriticMLP(
         input_size=env.observation_space.shape[0] + env.action_space.shape[0],
         dim_context=np.prod(example_embedding.shape),
-        output_dim=1,
+        output_size=1,
         **params['net'])
 
     if args.qf1_snap is not None:
-        qf1.load_state_dict(torch.load(args.qf2_snap, map_location='cpu'))
+        qf1.load_state_dict(torch.load(args.qf1_snap, map_location='cpu'))
     if args.qf2_snap is not None:
         qf2.load_state_dict(torch.load(args.qf2_snap, map_location='cpu'))
 
@@ -96,6 +113,8 @@ def experiment(args):
         "embedding_inputs": example_embedding
     }
 
+    # setup replay buffer
+    buffer_param = params['replay_buffer']
     replay_buffer = AsyncSharedReplayBuffer(int(buffer_param['size']),
                                             args.worker_nums
                                             )

@@ -7,10 +7,11 @@ from tabulate import tabulate
 import sys
 import json
 import csv
+import wandb
 
 
 class Logger():
-    def __init__(self, experiment_id, env_name, seed, params, log_dir="./log"):
+    def __init__(self, experiment_id, env_name, seed, params, log_dir="./log", use_wandb=True):
 
         self.logger = logging.getLogger("{}_{}_{}".format(experiment_id, env_name, str(seed)))
 
@@ -42,9 +43,11 @@ class Logger():
         self.logger.info(
             json.dumps(params, indent=2)
         )
+        self.use_wandb = use_wandb
 
     def log(self, info):
         self.logger.info(info)
+
 
     def add_update_info(self, infos):
 
@@ -64,8 +67,12 @@ class Logger():
         self.logger.info("EPOCH:{}".format(epoch_num))
         self.logger.info("Time Consumed:{}s".format(total_time))
         self.logger.info("Total Frames:{}s".format(total_frames))
+        infos["train_steps"] = total_frames
+        infos["custom_step"] = total_frames
 
         tabulate_list = [["Name", "Value"]]
+        if self.use_wandb:
+            wandb.log(infos)
 
         for info in infos:
             self.tf_writer.add_scalar(info, infos[info], total_frames)
@@ -86,6 +93,8 @@ class Logger():
             temp_list = [info]
             for name, method in zip(name_list, method_list):
                 processed_info = method(self.stored_infos[info])
+                wandb.log({"{}_{}".format(info, name): processed_info, "custom_step": total_frames})
+
                 self.tf_writer.add_scalar("{}_{}".format(info, name),
                                           processed_info, total_frames)
                 temp_list.append("{:.5f}".format(processed_info))

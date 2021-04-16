@@ -3,11 +3,15 @@ import json
 
 import torch
 
+
 def get_args():
     parser = argparse.ArgumentParser(description='RL')
-    
+
     parser.add_argument('--seed', type=int, default=0,
                         help='random seed (default: 1)')
+
+    parser.add_argument('--disable_wandb', default=False, action='store_true')
+    parser.add_argument('--wandb_username', type=str, default='')
 
     parser.add_argument('--worker_nums', type=int, default=4,
                         help='worker nums')
@@ -15,7 +19,7 @@ def get_args():
     parser.add_argument('--eval_worker_nums', type=int, default=2,
                         help='eval worker nums')
 
-    parser.add_argument("--config", type=str,   default=None,
+    parser.add_argument("--config", type=str, default=None,
                         help="config file", )
 
     parser.add_argument('--save_dir', type=str, default='./snapshots',
@@ -34,17 +38,17 @@ def get_args():
                         help="gpu secification", )
 
     # tensorboard
-    parser.add_argument("--id", type=str,   default=None,
+    parser.add_argument("--id", type=str, default=None,
                         help="id for tensorboard", )
 
     # policy snapshot
-    parser.add_argument("--pf_snap", type=str,   default=None,
+    parser.add_argument("--pf_snap", type=str, default=None,
                         help="policy snapshot path", )
     # q function snapshot
-    parser.add_argument("--qf1_snap", type=str,   default=None,
+    parser.add_argument("--qf1_snap", type=str, default=None,
                         help="policy snapshot path", )
     # q function snapshot
-    parser.add_argument("--qf2_snap", type=str,   default=None,
+    parser.add_argument("--qf2_snap", type=str, default=None,
                         help="policy snapshot path", )
 
     args = parser.parse_args()
@@ -52,6 +56,7 @@ def get_args():
     args.cuda = not args.no_cuda and torch.cuda.is_available()
 
     return args
+
 
 def get_params(file_name):
     with open(file_name) as f:

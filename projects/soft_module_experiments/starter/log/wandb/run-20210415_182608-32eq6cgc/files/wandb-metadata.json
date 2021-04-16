@@ -1,0 +1,35 @@
+{
+    "os": "Darwin-19.6.0-x86_64-i386-64bit",
+    "python": "3.7.9",
+    "heartbeatAt": "2021-04-16T01:26:12.750305",
+    "startedAt": "2021-04-16T01:26:08.700866",
+    "docker": null,
+    "cpu_count": 16,
+    "cuda": null,
+    "args": [
+        "--config",
+        "/Users/avelu/nta/nupic.embodied/projects/soft_module_experiments/meta_config/mt10/dendrite_3_1000_kw1.0_0.5.json",
+        "--id",
+        "MT10_Fixed_Modular_Shallow",
+        "--seed",
+        "0",
+        "--worker_nums",
+        "10",
+        "--eval_worker_nums",
+        "10",
+        "--wandb_username",
+        "avelu"
+    ],
+    "state": "running",
+    "program": "/Users/avelu/nta/nupic.embodied/projects/soft_module_experiments/starter/mt_para_dendrite.py",
+    "codePath": "projects/soft_module_experiments/starter/mt_para_dendrite.py",
+    "git": {
+        "remote": "git@github.com:akashvelu/nupic.embodied.git",
+        "commit": "d36a69553e5fc73788dd5f59f010ef4145fb970e"
+    },
+    "email": "akashvelu@berkeley.edu",
+    "root": "/Users/avelu/nta/nupic.embodied",
+    "host": "Akashs-MBP.fios-router.home",
+    "username": "avelu",
+    "executable": "/Users/avelu/miniconda3/envs/nupic.embodied_soft_mod/bin/python"
+}
