@@ -31,6 +31,6 @@ class FlattenSparseMLP(SparseMLP):
 
 
 class FlattenDendriticMLP(DendriticMLP):
-    def forward(self, x, context):
+    def forward(self, x, context, return_sigmoid_values=False):
         x = torch.cat(x, dim=-1)
-        return super().forward(x, context)
+        return super().forward(x, context, return_sigmoid_values=return_sigmoid_values)

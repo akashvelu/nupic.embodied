@@ -1,6 +1,7 @@
 from .twin_sac_q import TwinSACQ
 import torch
 import nupic.embodied.soft_modularization.torchrl.policies as policies
+from nupic.embodied.soft_modularization.networks.policies import DendriticGuassianContPolicy
 import torch.nn.functional as F
 
 
@@ -35,6 +36,7 @@ class MTSAC(TwinSACQ):
         if self.pf_flag:
             self.sample_key.append("embedding_inputs")
         self.grad_clip = grad_clip
+        self.dendrite_policy = isinstance(self.pf, DendriticGuassianContPolicy)
 
     def update(self, batch):
         self.training_update_num += 1
@@ -70,25 +72,39 @@ class MTSAC(TwinSACQ):
         Policy operations.
         """
         if self.idx_flag:
-            sample_info = self.pf.explore(obs, task_idx, return_log_probs=True)
+            sample_info = self.pf.explore(obs, task_idx, return_log_probs=True, return_sigmoid_values=True)
         else:
             if self.pf_flag:
-                sample_info = self.pf.explore(obs, embedding_inputs, return_log_probs=True)
+                sample_info = self.pf.explore(obs, embedding_inputs, return_log_probs=True, return_sigmoid_values=True)
             else:
-                sample_info = self.pf.explore(obs, return_log_probs=True)
+                sample_info = self.pf.explore(obs, return_log_probs=True, return_sigmoid_values=True)
 
         new_action_mean = sample_info["mean"]
         new_action_log_std = sample_info["log_std"]
         new_actions = sample_info["action"]
         new_action_log_prob = sample_info["log_prob"]
+        new_action_sigmoid_values = sample_info["sigmoid_values"]
 
         if self.idx_flag:
-            q1_pred = self.qf1([obs, actions], task_idx)
-            q2_pred = self.qf2([obs, actions], task_idx)
+            if self.dendrite_policy:
+                q1_pred, q1_sigmoid_vals = self.qf1([obs, actions], task_idx, return_sigmoid_values=True)
+                q2_pred, q2_sigmoid_vals = self.qf2([obs, actions], task_idx, return_sigmoid_values=True)
+                q1_entropy, q1_conditional_entropy, q1_mutual_info, q1_layer_mutual_info = \
+                    self._compute_dendrite_stats(q1_sigmoid_vals)
+                q2_entropy, q2_conditional_entropy, q2_mutual_info, q2_layer_mutual_info = \
+                    self._compute_dendrite_stats(q2_sigmoid_vals)
+            else:
+                q1_pred = self.qf1([obs, actions], task_idx)
+                q2_pred = self.qf2([obs, actions], task_idx)
         else:
             if self.pf_flag:
-                q1_pred = self.qf1([obs, actions], embedding_inputs)
-                q2_pred = self.qf2([obs, actions], embedding_inputs)
+                if self.dendrite_policy:
+                    q1_pred, q1_sigmoid_vals = self.qf1([obs, actions], embedding_inputs, return_sigmoid_values=True)
+                    q2_pred, q2_sigmoid_vals = self.qf2([obs, actions], embedding_inputs, return_sigmoid_values=True)
+                    q1_entropy, q1_conditional_entropy, q1_mutual_info, q1_layer_mutual_info = \
+                        self._compute_dendrite_stats(q1_sigmoid_vals)
+                    q2_entropy, q2_conditional_entropy, q2_mutual_info, q2_layer_mutual_info = \
+                        self._compute_dendrite_stats(q2_sigmoid_vals)
             else:
                 q1_pred = self.qf1([obs, actions])
                 q2_pred = self.qf2([obs, actions])
@@ -200,6 +216,10 @@ class MTSAC(TwinSACQ):
 
         policy_loss += std_reg_loss + mean_reg_loss
 
+        if new_action_sigmoid_values is not None:
+            pf_entropy, pf_conditional_entropy, pf_mean_mutual_info, pf_layer_mutual_info = self._compute_dendrite_stats(
+                new_action_sigmoid_values)
+
         """
         Update Networks
         """
@@ -261,6 +281,13 @@ class MTSAC(TwinSACQ):
         info['new_action_mean/max'] = new_action_mean.max().item()
         info['new_action_mean/min'] = new_action_mean.min().item()
 
+        if self.dendrite_policy:
+            self._log_dendrite_stats(info, "pf_dendrite", pf_entropy, pf_conditional_entropy, pf_mean_mutual_info,
+                                     pf_layer_mutual_info)
+            self._log_dendrite_stats(info, "qf1_dendrite", q1_entropy, q1_conditional_entropy, q1_mutual_info,
+                                     q1_layer_mutual_info)
+            self._log_dendrite_stats(info, "qf2_dendrite", q2_entropy, q2_conditional_entropy, q2_mutual_info,
+                                     q2_layer_mutual_info)
         return info
 
     def update_per_epoch(self):
@@ -271,3 +298,22 @@ class MTSAC(TwinSACQ):
             infos = self.update(batch)
             self.logger.add_update_info(infos)
             self.post_gradient_step()
+
+    def _compute_dendrite_stats(self, dendrite_sigmoid_vals):
+        unit_probs = dendrite_sigmoid_vals.sum(dim=2) / self.task_nums
+        unit_entropy = torch.distributions.Bernoulli(probs=unit_probs).entropy()
+        conditional_entropy = torch.distributions.Bernoulli(probs=dendrite_sigmoid_vals).entropy().sum(
+            dim=2) / self.task_nums
+        mutual_info = unit_entropy - conditional_entropy
+
+        per_segment_mutual_info = mutual_info.view(mutual_info.shape[0], -1).mean(-1)
+        mean_mutual_info = per_segment_mutual_info.mean()
+
+        return unit_entropy.mean(), conditional_entropy.mean(), mean_mutual_info, per_segment_mutual_info
+
+    def _log_dendrite_stats(self, info_dict, key_string, entropy, cond_entropy, mutual_info, per_layer_mutual_info):
+        info_dict['dendrite_stats/{}_entropy'.format(key_string)] = entropy.item()
+        info_dict['dendrite_stats/{}_cond_entropy'.format(key_string)] = cond_entropy.mean().item()
+        info_dict['dendrite_stats/{}_mutual_info'.format(key_string)] = mutual_info.item()
+        for i in range(len(per_layer_mutual_info)):
+            info_dict['dendrite_stats/{}_layer_{}_mutual_info'.format(key_string, i)] = per_layer_mutual_info[i].item()
